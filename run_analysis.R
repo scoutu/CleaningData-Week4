@@ -1,96 +1,77 @@
-## Create one R script called run_analysis.R that does the following: 
-## 1. Merges the training and the test sets to create one data set. 
-## 2. Extracts only the measurements on the mean and standard deviation for each measurement. 
-## 3. Uses descriptive activity names to name the activities in the data set 
-## 4. Appropriately labels the data set with descriptive activity names. 
-## 5. Creates a second, independent tidy data set with the average of each variable for each activity and each subject. 
+# Coursera: Data Science Track: Getting and Cleaning Data 
+ 
+# Source: 
+# http://archive.ics.uci.edu/ml/datasets/Human+Activity+Recognition+Using+Smartphones 
  
 
-if (!require("data.table")) { 
-   install.packages("data.table") 
- } 
+# You should create one R script called run_analysis.R that does the following: 
  
+setwd("C:/Users/Sandra/Documents/Coursera/CleaningData/Donwload/UCI HAR Dataset") 
 
- if (!require("reshape2")) { 
-     install.packages("reshape2") 
-   } 
- 
 
- require("data.table") 
- require("reshape2") 
- 
+# Reading trainings tables:
+x_train <- read.table("train/X_train.txt")
+y_train <- read.table("train/y_train.txt")
+subject_train <- read.table("train/subject_train.txt")
 
- # Load: activity labels 
- activity_labels <- read.table("C:/Users/Sandra/Documents/Coursera/CleaningData/Donwload/data/Week4/UCI HAR Dataset/activity_labels.txt")[,2] 
- 
+# Reading testing tables:
+x_test <- read.table("test/X_test.txt")
+y_test <- read.table("test/y_test.txt")
+subject_test <- read.table("test/subject_test.txt")
 
- # Load: data column names 
- features <- read.table("C:/Users/Sandra/Documents/Coursera/CleaningData/Donwload/data/Week4/UCI HAR Dataset/features.txt")[,2] 
- 
+# Reading feature vector:
+features <- read.table('features.txt')
 
- # Extract only the measurements on the mean and standard deviation for each measurement. 
- extract_features <- grepl("mean|std", features) 
- 
+# Reading activity labels:
+activityLabels = read.table('activity_labels.txt')
 
- # Load and process X_test & y_test data. 
- X_test <- read.table("C:/Users/Sandra/Documents/Coursera/CleaningData/Donwload/data/Week4/UCI HAR Dataset/test/X_test.txt") 
- y_test <- read.table("C:/Users/Sandra/Documents/Coursera/CleaningData/Donwload/data/Week4/UCI HAR Dataset/test/y_test.txt") 
- subject_test <- read.table("C:/Users/Sandra/Documents/Coursera/CleaningData/Donwload/data/Week4/UCI HAR Dataset/test/subject_test.txt") 
- 
 
- names(X_test) = features 
- 
+# Assigning columns
 
- # Extract only the measurements on the mean and standard deviation for each measurement. 
- X_test = X_test[,extract_features] 
- 
+colnames(x_train) <- features[,2] 
+colnames(y_train) <-"activityId"
+colnames(subject_train) <- "subjectId"
 
- # Load activity labels 
- y_test[,2] = activity_labels[y_test[,1]] 
- names(y_test) = c("Activity_ID", "Activity_Label") 
- names(subject_test) = "subject" 
- 
+colnames(x_test) <- features[,2] 
+colnames(y_test) <- "activityId"
+colnames(subject_test) <- "subjectId"
 
- # Bind data 
- test_data <- cbind(as.data.table(subject_test), y_test, X_test) 
- 
+colnames(activityLabels) <- c('activityId','activityType')
 
- # Load and process X_train & y_train data. 
- X_train <- read.table("C:/Users/Sandra/Documents/Coursera/CleaningData/Donwload/data/Week4/UCI HAR Dataset/train/X_train.txt") 
- y_train <- read.table("C:/Users/Sandra/Documents/Coursera/CleaningData/Donwload/data/Week4/UCI HAR Dataset/train/y_train.txt") 
- 
 
- subject_train <- read.table("C:/Users/Sandra/Documents/Coursera/CleaningData/Donwload/data/Week4/UCI HAR Dataset/train/subject_train.txt") 
- 
+# Merging all data in one set:
 
- names(X_train) = features 
- 
+mrg_train <- cbind(y_train, subject_train, x_train)
+mrg_test <- cbind(y_test, subject_test, x_test)
+setAllInOne <- rbind(mrg_train, mrg_test)
 
- # Extract only the measurements on the mean and standard deviation for each measurement. 
- X_train = X_train[,extract_features] 
- 
 
- # Load activity data 
- y_train[,2] = activity_labels[y_train[,1]] 
- names(y_train) = c("Activity_ID", "Activity_Label") 
- names(subject_train) = "subject" 
- 
-
- # Bind data 
- train_data <- cbind(as.data.table(subject_train), y_train, X_train) 
- 
-
- # Merge test and train data 
- data = rbind(test_data, train_data) 
- 
-
- id_labels   = c("subject", "Activity_ID", "Activity_Label") 
- data_labels = setdiff(colnames(data), id_labels) 
- melt_data      = melt(data, id = id_labels, measure.vars = data_labels) 
- 
-
- # Apply mean function to dataset using dcast function 
- tidy_data   = dcast(melt_data, subject + Activity_Label ~ variable, mean) 
- 
-
- write.table(tidy_data, file = "C:/Users/Sandra/Documents/Coursera/CleaningData/Donwload/data/Week4/Results/tidy_data.txt") 
+# Reading column names:
+  colNames <- colnames(setAllInOne)
+  
+# Create vector for defining ID, mean and standard deviation:
+  mean_and_std <- (grepl("activityId" , colNames) | 
+                   grepl("subjectId" , colNames) | 
+                   grepl("mean.." , colNames) | 
+                   grepl("std.." , colNames) 
+    )
+  
+    
+# Making nessesary subset from setAllInOne:
+  setForMeanAndStd <- setAllInOne[ , mean_and_std == TRUE]
+      
+      
+# Using descriptive activity names to name the activities in the data set:
+  setWithActivityNames <- merge(setForMeanAndStd, activityLabels,by='activityId',all.x=TRUE)
+      
+  
+# Creating a second, independent tidy data set with the average of each variable for each activity and each subject:
+          
+          
+# Making second tidy data set
+secTidySet <- aggregate(. ~subjectId + activityId, setWithActivityNames, mean)
+secTidySet <- secTidySet[order(secTidySet$subjectId, secTidySet$activityId),]
+      
+# Writing second tidy data set in txt file
+write.table(secTidySet, "secTidySet.txt", row.name=FALSE)
+        
